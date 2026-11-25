@@ -354,3 +354,10 @@ describe('the Remove button with Also delete files', () => {
 		expect(removeSent(rows, false)).toEqual([rows[1]]);
 	});
 });
+
+it('preserves custom per-kind imported categories through editing and saving', () => {
+ const f = { ...emptyForm('qbittorrent'), category_after_import: ' shared ', category_after_import_movies: ' movies-imported ', category_after_import_shows: ' TV archive ', category_after_import_music: ' albums-done ' };
+ expect(formBody(f)).toMatchObject({ category_after_import: 'shared', category_after_import_movies: 'movies-imported', category_after_import_shows: 'TV archive', category_after_import_music: 'albums-done' });
+ expect(formFrom({...saved, kind: 'qbittorrent', category_after_import_movies: 'movies-imported', category_after_import_shows: 'TV archive', category_after_import_music: 'albums-done'})).toMatchObject({category_after_import_movies: 'movies-imported', category_after_import_shows: 'TV archive', category_after_import_music: 'albums-done'});
+ expect(formBody({...f, kind: 'transmission'})).not.toHaveProperty('category_after_import_movies');
+});
