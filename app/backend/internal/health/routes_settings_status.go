@@ -137,7 +137,13 @@ func SettingsStatus(in StatusInput) StatusAnswer {
 		if c.State == "error" {
 			sev = "error"
 		}
-		add(StatusItem{to.group, to.page, text, sev}, c.Kind+":"+c.Subject)
+		key := c.Kind + ":" + c.Subject
+		// The health check and release notice describe the same update. Keep
+		// the check's detailed version message instead of counting it twice.
+		if c.Kind == "update" {
+			key = "update:"
+		}
+		add(StatusItem{to.group, to.page, text, sev}, key)
 	}
 	for _, s := range in.States {
 		to, ok := stateTarget[s.Kind]

@@ -15,7 +15,7 @@
 	import { backdrop } from '#lib/accounts/index.ts';
 	import { minimalLook } from '#lib/core/look.svelte.ts';
 	import { partsNow, offPartName, partOff } from '#lib/mediafiles/index.ts';
-	import { settingsNow, refreshSettingsStatus, pageState, stateWords } from '#lib/alerts/index.ts';
+	import { SettingsAttention, settingsNow, refreshSettingsStatus, pageState, stateWords } from '#lib/alerts/index.ts';
 	import type { Snippet } from 'svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -164,7 +164,8 @@
 {#snippet pill()}
 	<!-- Sources switched off in Parts: the page says Off, not Not set up. -->
 	{#if currentSection?.href === '/settings/sources' && partOff('sources')}<span class="page-status" data-testid="page-status"><StatusPill kind="missing" label={t('settings.sources.offState')} /></span>
-	{:else if status && stateWords(status)}<span class="page-status" data-testid="page-status"><StatusPill kind={status.state === 'ok' ? 'in_library' : status.state === 'attention' ? 'failed' : 'missing'} label={stateWords(status)} /></span>{/if}
+	{:else if status?.state === 'attention'}<a class="page-status" href="#settings-attention" data-testid="page-status"><StatusPill kind="failed" label={stateWords(status)} /></a>
+	{:else if status && stateWords(status)}<span class="page-status" data-testid="page-status"><StatusPill kind={status.state === 'ok' ? 'in_library' : 'missing'} label={stateWords(status)} /></span>{/if}
 {/snippet}
 
 <!-- Background: this Library's posters, blurred and dimmed, still. -->
@@ -219,6 +220,7 @@
 				</SettingsCard>
 			{/if}
 			{#if !blocked && reauth !== 'load'}
+				<SettingsAttention items={(settingsNow.answer?.items ?? []).filter((item) => item.href === currentSection?.href)} />
 				{#key pageKey}{@render children()}{/key}
 			{/if}
 		</div>

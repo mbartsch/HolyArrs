@@ -1,3 +1,4 @@
+export { default as SettingsAttention } from './SettingsAttention.svelte';
 export { default as DotList } from './DotList.svelte';
 export { default as AlertsPanel } from './AlertsPanel.svelte';
 export { default as AlertSymbol } from './AlertSymbol.svelte';

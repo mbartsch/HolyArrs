@@ -163,3 +163,14 @@ func TestStatusWarnsKidWithOutsideJoin(t *testing.T) {
 		}
 	}
 }
+
+func TestSettingsStatusUpdateCountedOnce(t *testing.T) {
+	const detail = "HolyArrs 1.3.1 is out (this is 1.3.1-mixed.cbf81423)"
+	a := SettingsStatus(StatusInput{
+		Checks:      []domain.HealthCheck{check("update", "HolyArrs 1.3.1-mixed.cbf81423", "warning", detail)},
+		UpdateNewer: boolp(true), Now: statusNow,
+	})
+	if len(a.Items) != 1 || a.Items[0].Page != "/settings/this-app" || a.Items[0].Text != "HolyArrs 1.3.1-mixed.cbf81423: "+detail {
+		t.Fatalf("update should appear once with its detailed reason: %+v", a.Items)
+	}
+}
