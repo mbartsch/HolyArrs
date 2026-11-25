@@ -7,6 +7,7 @@ import (
 
 	"github.com/HolyArrs/holyarrs/app/backend/internal/core/database"
 	domain "github.com/HolyArrs/holyarrs/app/backend/internal/core/model"
+	"github.com/HolyArrs/holyarrs/app/backend/internal/mediafiles"
 )
 
 // MoveAfterImport moves a fully imported torrent to its Downloader's category
@@ -25,7 +26,9 @@ func (m *Manager) MoveAfterImport(ctx context.Context, downloadID int64) {
 	}
 	kind := ""
 	if len(d.SlotIDs) > 0 {
-		if err := m.Store.Read().QueryRowContext(ctx, `SELECT t.kind FROM slots s JOIN items i ON i.id = s.item_id JOIN titles t ON t.id = i.title_id WHERE s.id = ?`, d.SlotIDs[0]).Scan(&kind); err != nil {
+		var err error
+		kind, err = mediafiles.SlotKind(ctx, m.Store.Read(), d.SlotIDs[0])
+		if err != nil {
 			return
 		}
 	}
