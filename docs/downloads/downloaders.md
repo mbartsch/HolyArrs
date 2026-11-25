@@ -35,6 +35,12 @@ HolyArrs does not download by itself. It hands each Release to a Downloader, fol
 If HolyArrs and the Downloader run in separate containers and see the download folder under different paths, imports fail. Fill in the path pair under [Paths](#paths) before the first download.
 :::
 
+## Categories after import
+
+For qBittorrent, open the Downloader's additional settings to choose where fully imported torrents go. **Category after import** is the shared default. The movie, show and music fields override it for each media type; leave an override blank to use the shared default. Leave all four blank to keep torrents in their original categories.
+
+Use any category names, such as `movies-imported`, `shows-imported` and `music-imported`, or one shared category such as `imported`. Imported categories must differ from the categories used for new downloads. Existing shared-category settings continue to work.
+
 ## Sign-in for each app
 
 | App | What to enter | Where to find it |

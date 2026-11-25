@@ -219,3 +219,58 @@ func TestAfterImportCategorySettings(t *testing.T) {
 		t.Fatalf("categories %s", got)
 	}
 }
+
+func TestMoveAfterImportKindCategories(t *testing.T) {
+	for _, tc := range []struct{ kind, column, category string }{
+		{"movie", "movies", "movies-imported"},
+		{"show", "shows", "finished television"},
+		{"artist", "music", "my music archive"},
+	} {
+		t.Run(tc.kind, func(t *testing.T) {
+			w, m, id, e := movedDownload(t)
+			if err := execSQL(w, `UPDATE titles SET kind = '`+tc.kind+`'`); err != nil {
+				t.Fatal(err)
+			}
+			if err := execSQL(w, `UPDATE downloaders SET category_after_import_`+tc.column+` = '`+tc.category+`'`); err != nil {
+				t.Fatal(err)
+			}
+			m.MoveAfterImport(context.Background(), id)
+			if len(e.moves) != 1 || e.moves[0] != hash+"|"+tc.category {
+				t.Fatalf("moves %v", e.moves)
+			}
+		})
+	}
+}
+
+func TestAfterImportKindCategoryValidation(t *testing.T) {
+	for _, field := range []string{"movies", "shows", "music"} {
+		t.Run(field, func(t *testing.T) {
+			cat := " finished-custom "
+			in := Input{Name: "q"}
+			switch field {
+			case "movies":
+				in.CategoryAfterImportMovies = &cat
+			case "shows":
+				in.CategoryAfterImportShows = &cat
+			case "music":
+				in.CategoryAfterImportMusic = &cat
+			}
+			d := domain.Downloader{Adapter: "qbittorrent", Category: "main"}
+			if err := fill(in, &d, false); err != nil {
+				t.Fatal(err)
+			}
+			if len(d.Categories()) != 2 || len(mainCategories(d)) != 1 {
+				t.Fatalf("categories %v, main %v", d.Categories(), mainCategories(d))
+			}
+			d.Adapter = "transmission"
+			if !errors.Is(checkAfterImport(d), ErrAfterImportCategory) {
+				t.Fatal("accepted unsupported client")
+			}
+			d.Adapter = "qbittorrent"
+			d.Category = "finished-custom"
+			if !errors.Is(checkAfterImport(d), ErrAfterImportSame) {
+				t.Fatal("accepted main category")
+			}
+		})
+	}
+}
