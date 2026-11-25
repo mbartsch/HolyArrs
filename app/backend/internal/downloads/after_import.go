@@ -23,7 +23,13 @@ func (m *Manager) MoveAfterImport(ctx context.Context, downloadID int64) {
 	if err := database.Get(ctx, m.Store.Read(), "downloaders", d.DownloaderID, &dr); err != nil {
 		return
 	}
-	cat := dr.CategoryAfterImport
+	kind := ""
+	if len(d.SlotIDs) > 0 {
+		if err := m.Store.Read().QueryRowContext(ctx, `SELECT t.kind FROM slots s JOIN items i ON i.id = s.item_id JOIN titles t ON t.id = i.title_id WHERE s.id = ?`, d.SlotIDs[0]).Scan(&kind); err != nil {
+			return
+		}
+	}
+	cat := dr.AfterImportCategoryFor(kind)
 	if cat == "" || dr.Protocol != "torrent" || dr.Removed || dr.State == "disabled" || readOnlyFor(dr) || packStillOpen(d) {
 		return
 	}
