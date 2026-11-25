@@ -22,6 +22,7 @@ export { default as DlFind } from './DlFind.svelte';
 export { default as DlSections } from './DlSections.svelte';
 export { default as HistoryLine } from './HistoryLine.svelte';
 export { default as HistoryPage } from './HistoryPage.svelte';
+export { default as ImportedCategories } from './ImportedCategories.svelte';
 export { default as KindCategories } from './KindCategories.svelte';
 export { default as MissingCategory } from './MissingCategory.svelte';
 export { default as NoDownloaderNote } from './NoDownloaderNote.svelte';
