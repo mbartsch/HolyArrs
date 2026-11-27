@@ -577,7 +577,7 @@ func (s *Service) recordFound(ctx context.Context, lf mediafiles.LibraryFolder, 
 }
 
 // linkFoundMovie links the one found video, extras aside, in a movie Version's folder to
-// its slot when the slot has no file and no running download, as Radarr does
+// its slot when the slot has no present file and no running download, as Radarr does
 // with a file another app placed: once the file is there the movie is no
 // longer wanted. A file that does not fit (edition, audio) stays a note.
 func (s *Service) linkFoundMovie(ctx context.Context, v mediafiles.Version, by domain.Actor) error {
@@ -591,6 +591,25 @@ func (s *Service) linkFoundMovie(ctx context.Context, v mediafiles.Version, by d
 		// never linked as its copy; it stays a note beside it.
 		if len(f.SlotIDs) == 0 && !f.Protected && !movieExtraIn(v.FolderName, strings.TrimPrefix(f.RelativePath, v.FolderName+"/")) {
 			only = append(only, f)
+		}
+	}
+	if len(only) > 1 {
+		// A remux can leave several videos beside a missing copy. Prefer
+		// exactly one with the old path's stem (only its container changed),
+		// while other cuts and ambiguous container choices stay notes.
+		missing, err := database.Select[mediafiles.File](ctx, s.Store.Read(), "files",
+			"version_id = ? AND state = 'missing' AND protected = 0 AND role = 'main' AND id IN (SELECT file_id FROM slots WHERE version_id = ?)", v.ID, v.ID)
+		if err != nil {
+			return err
+		}
+		if len(missing) == 1 {
+			stem := strings.TrimSuffix(missing[0].RelativePath, path.Ext(missing[0].RelativePath))
+			matches := slices.DeleteFunc(slices.Clone(only), func(f mediafiles.File) bool {
+				return strings.TrimSuffix(f.RelativePath, path.Ext(f.RelativePath)) != stem
+			})
+			if len(matches) == 1 {
+				only = matches
+			}
 		}
 	}
 	if len(only) > 1 {

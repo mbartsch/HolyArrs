@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -54,6 +55,91 @@ func movieWithFoundCopy(t *testing.T, state string) (*Service, *database.Store, 
 		return st == "downloading", nil
 	}
 	return &Service{Store: s, Now: func() time.Time { return now }, DownloadRunning: running}, s, id, rel
+}
+
+// A container change can leave the old MP4 missing beside a new MKV and
+// another cut. Only an unambiguous match to the old path may replace it.
+func TestRescanMovieReplacement(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		oldName         string
+		extra           []string
+		protected       bool
+		keepOld         bool
+		wantReplacement bool
+	}{
+		{name: "one replacement", wantReplacement: true},
+		{name: "matching stem beside another cut", extra: []string{"Other.Cut.mkv"}, wantReplacement: true},
+		{name: "two matching containers", extra: []string{"Dune.Part.Two.2024.1080p.WEB-DL.H264-GRP.avi"}},
+		{name: "no matching stem", oldName: "Old.Name.mp4", extra: []string{"Other.Cut.mkv"}},
+		{name: "protected missing copy", extra: []string{"Other.Cut.mkv"}, protected: true},
+		{name: "present copy", extra: []string{"Other.Cut.mkv"}, keepOld: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, s, id, replacement := movieWithFoundCopy(t, "")
+			ctx := context.Background()
+			v := versionsOf(t, s, id)[0]
+			var lf mediafiles.LibraryFolder
+			if err := database.Get(ctx, s.Read(), "library_folders", v.LibraryFolderID, &lf); err != nil {
+				t.Fatal(err)
+			}
+			oldPath := replacement[:len(replacement)-len(filepath.Ext(replacement))] + ".mp4"
+			if tc.oldName != "" {
+				oldPath = v.FolderName + "/" + tc.oldName
+			}
+			writeFile(t, filepath.Join(lf.Path, oldPath), "original video")
+			old, err := svc.AdoptMovieCopy(ctx, id, v.ID, CopyAdoption{RelativePath: oldPath}, domain.System)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.protected {
+				if err := s.Write(ctx, func(tx *sql.Tx) error {
+					_, err := tx.Exec("UPDATE files SET protected = 1 WHERE id = ?", old.ID)
+					return err
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if !tc.keepOld {
+				if err := os.Remove(filepath.Join(lf.Path, oldPath)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, name := range tc.extra {
+				writeFile(t, filepath.Join(lf.Path, v.FolderName, name), "another video")
+			}
+			for pass := 0; pass < 2; pass++ {
+				if _, err := svc.Rescan(ctx, domain.System); err != nil {
+					t.Fatal(err)
+				}
+				sl := slotsOf(t, s, id)[0]
+				if sl.FileID == nil {
+					t.Fatal("movie lost its file link")
+				}
+				var linked mediafiles.File
+				if err := database.Get(ctx, s.Read(), "files", *sl.FileID, &linked); err != nil {
+					t.Fatal(err)
+				}
+				if tc.wantReplacement {
+					if linked.RelativePath != replacement || linked.State != "present" || sl.State != mediafiles.SlotInLibrary {
+						t.Fatalf("replacement not linked: slot=%+v file=%+v", sl, linked)
+					}
+					var previous mediafiles.File
+					if err := database.Get(ctx, s.Read(), "files", old.ID, &previous); err != nil {
+						t.Fatal(err)
+					}
+					if previous.State != "missing" || len(previous.SlotIDs) != 0 {
+						t.Fatalf("old copy still owns slot: %+v", previous)
+					}
+				} else if linked.ID != old.ID {
+					t.Fatalf("replaced a copy requiring a choice: %+v", linked)
+				}
+				if _, err := os.Stat(filepath.Join(lf.Path, replacement)); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
 }
 
 func linkedCopy(t *testing.T, s *database.Store, titleID int64, rel string) (mediafiles.Slot, string) {

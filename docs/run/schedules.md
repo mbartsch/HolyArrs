@@ -50,6 +50,8 @@ The next timed run does not move. A job already waiting or running is not starte
 | Clean the holding folder | 6 h to 7 days | |
 | Clean up History | 6 h to 7 days | Settings > This app |
 
+**Rescan the Library** also links replacement movie files. If an old copy is missing and several videos are found, one with the same folder and filename apart from its extension can take its place (for example, `Movie.mp4` becomes `Movie.mkv`). Multiple matching files still need a choice. Protected copies and active downloads are left for review. No files are moved or deleted.
+
 ### Turn a schedule off
 
 Two schedules can be turned off: **Refresh movie details** and **Rescan the Library**, for example to let NAS disks sleep. Off survives restarts and leaves other jobs running.
